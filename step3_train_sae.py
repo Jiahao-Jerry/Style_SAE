@@ -53,7 +53,7 @@ diff_vecs   = np.load(diff_file).astype(np.float32)
 axis_labels = np.load(f"axis_labels_{n_str}.npy")
 directions  = np.load(f"directions_{n_str}.npy")
 
-input_dim = diff_vecs.shape[1]      # 3584 for Qwen2.5-7B
+input_dim = diff_vecs.shape[1]      # 2048 for Qwen2.5-3B
 print(f"  Diff vectors: {diff_vecs.shape}  (input_dim={input_dim})")
 print(f"  Axis distribution: {dict(Counter(axis_labels))}")
 
@@ -281,7 +281,7 @@ ax7.pie(list(cats.values()), labels=list(cats.keys()),
 ax7.set_title("Feature Categories", color=TEXT)
 
 fig.suptitle(
-    f"SAE on Qwen2.5-7B Diff Vectors  |  {len(diff_vecs)} pairs  "
+    f"SAE on Qwen2.5-3B Diff Vectors  |  {len(diff_vecs)} pairs  "
     f"·  F={N_FEATURES}  ·  L1={L1_COEF}  ·  {EPOCHS} epochs  ·  dim={input_dim}",
     color=TEXT, fontsize=11, y=0.98)
 
