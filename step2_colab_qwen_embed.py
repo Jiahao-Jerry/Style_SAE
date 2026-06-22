@@ -11,7 +11,7 @@ Download after running:
   - directions_4900.npy       (N_pairs,) string array
   - post_ids_4900.npy         (N_pairs,) string array
 
-Runtime: ~10 min on T4
+Runtime: ~30 min on T4  (MAX_LENGTH=512, BATCH_SIZE=2)
 """
 
 # ── Cell 1: Install ───────────────────────────────────────────────
@@ -27,8 +27,8 @@ from collections import defaultdict
 CACHE_FILE = "sae_clean_rewrites.json"
 MODEL_NAME = "Qwen/Qwen2.5-3B"
 LAYER_IDX  = 23
-MAX_LENGTH = 128
-BATCH_SIZE = 8
+MAX_LENGTH = 512
+BATCH_SIZE = 2
 DEVICE     = "cuda" if torch.cuda.is_available() else "cpu"
 DTYPE      = torch.bfloat16
 AXIS_NAMES = [
@@ -135,8 +135,11 @@ print(f"  directions_{n}.npy")
 print(f"  post_ids_{n}.npy")
 print(f"\nDownload these 4 files and run step3_train_sae.py locally.")
 
-from google.colab import files
-files.download(f"diff_vectors_{n}.npy")
-files.download(f"axis_labels_{n}.npy")
-files.download(f"directions_{n}.npy")
-files.download(f"post_ids_{n}.npy")
+try:
+    from google.colab import files
+    files.download(f"diff_vectors_{n}.npy")
+    files.download(f"axis_labels_{n}.npy")
+    files.download(f"directions_{n}.npy")
+    files.download(f"post_ids_{n}.npy")
+except ImportError:
+    print("Not running in Colab — download the 4 .npy files manually.")
