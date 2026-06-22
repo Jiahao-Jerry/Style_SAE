@@ -24,7 +24,7 @@ from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────
 N_FEATURES   = 64
-L1_COEF      = 0.10
+L1_COEF      = 0.05
 LR           = 1e-3
 EPOCHS       = 600
 BATCH_SIZE   = 128
@@ -56,6 +56,10 @@ directions  = np.load(f"directions_{n_str}.npy")
 input_dim = diff_vecs.shape[1]      # 2048 for Qwen2.5-3B
 print(f"  Diff vectors: {diff_vecs.shape}  (input_dim={input_dim})")
 print(f"  Axis distribution: {dict(Counter(axis_labels))}")
+
+# Sign-normalize: flip 'down' vectors so all point in the 'increase' direction
+diff_vecs[directions == "down"] *= -1
+print(f"  Sign-normalized: {(directions == 'down').sum()} 'down' vectors flipped")
 
 # L2-normalize
 norms     = np.linalg.norm(diff_vecs, axis=1, keepdims=True).clip(min=1e-8)
