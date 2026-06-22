@@ -1,10 +1,16 @@
 """
 Step 1 (Local) — Generate 4,900 rewrites (700 posts × 7 axes) using Claude Haiku.
-Reuses existing sae_clean_rewrites.json cache (210 already done).
-New rewrites append to the same cache file.
 
-Cost estimate: ~4,690 new rewrites × $0.00062 ≈ $2.91
-Run time:      ~25 minutes (sequential, no rate limiting needed for Haiku)
+Input:  2550_posts.jsonl  (from github.com/Jiahao-Jerry/SURE)
+Output: sae_clean_rewrites.json  (list of 700 post entries, each with 7 axis rewrites)
+
+Post selection: 700 posts sampled from 2550_posts.jsonl with fixed N_PER_TOPIC posts
+per topic (17 topics × 41 posts = 697, rounded up to 700). Within each topic, posts
+are ranked by mid-range axis score count (how many of 7 axes fall in 0.2–0.8) so
+rewrites have maximum room to shift in either direction.
+
+Cost estimate: ~4,900 rewrites × $0.00062 ≈ $3.00
+Run time:      ~25 minutes
 """
 
 import json, time, random
@@ -16,7 +22,7 @@ from anthropic import Anthropic
 POSTS_FILE = "2550_posts.jsonl"
 
 # ── Config ────────────────────────────────────────────────────────
-N_POSTS        = 700           # total unique original posts
+N_PER_TOPIC    = 41            # posts per topic (17 × 41 = 697 ≈ 700)
 CACHE_FILE     = "sae_clean_rewrites.json"
 AXIS_NAMES     = ["reading_level", "background", "abstract_concrete",
                   "tone", "humor", "narrativity", "grounding"]
@@ -127,31 +133,19 @@ if Path(CACHE_FILE).exists():
 
 print(f"  {len(cache)} rewrites already cached")
 
-# ── Select 700 posts ──────────────────────────────────────────────
-# Priority: posts already in cache, then new posts with mid-range scores
-cached_post_ids = set(r["post_id"] for r in cache.values())
-
-# Posts already in cache that exist in df
-priority_ids = [pid for pid in cached_post_ids if pid in df["post_id"].values]
-
-# Fill remaining with posts that have mid-range scores on most axes
-# (0.2–0.8 range means room to shift in either direction)
-rng = random.Random(SEED)
-remaining_df = df[~df["post_id"].isin(cached_post_ids)].copy()
-
-# Score each post by how many axes are in mid-range
+# ── Select N_PER_TOPIC posts per topic ───────────────────────────
 def mid_range_count(row):
     return sum(1 for ax in AXIS_NAMES if 0.2 <= row[ax] <= 0.8)
 
-remaining_df["mid_count"] = remaining_df.apply(mid_range_count, axis=1)
-remaining_df = remaining_df.sort_values("mid_count", ascending=False)
+df["mid_count"] = df.apply(mid_range_count, axis=1)
 
-n_needed = N_POSTS - len(priority_ids)
-new_ids   = remaining_df["post_id"].iloc[:n_needed].tolist()
+selected_ids = []
+rng = random.Random(SEED)
+for topic, group in df.groupby("topic_name"):
+    group_sorted = group.sort_values("mid_count", ascending=False)
+    selected_ids += group_sorted["post_id"].iloc[:N_PER_TOPIC].tolist()
 
-selected_ids = priority_ids + new_ids
-print(f"\nSelected {len(selected_ids)} posts "
-      f"({len(priority_ids)} from cache + {len(new_ids)} new)")
+print(f"\nSelected {len(selected_ids)} posts ({N_PER_TOPIC} per topic × {df['topic_name'].nunique()} topics)")
 
 # ── Build work list ───────────────────────────────────────────────
 todo = []
@@ -170,7 +164,7 @@ for pid in selected_ids:
 
 total_needed = len(selected_ids) * len(AXIS_NAMES)
 already_done = total_needed - len(todo)
-print(f"Total pairs needed:  {total_needed}")
+print(f"Total pairs needed:  {total_needed}  ({len(selected_ids)} posts × {len(AXIS_NAMES)} axes)")
 print(f"Already cached:      {already_done}")
 print(f"To generate:         {len(todo)}")
 print(f"Estimated cost:      ${len(todo) * 0.00062:.2f}")
